@@ -1,44 +1,155 @@
 <!DOCTYPE html>
 <html lang="el">
 <head>
-<meta charset="UTF-8">
-<title>School_Free_WiFi</title>
-</head>
-<body style="text-align:center;font-family:sans-serif">
-<h2>Σύνδεση στο School_Free_WiFi</h2>
-<p>Για λόγους ασφαλείας απαιτείται επιβεβαίωση χρήστη</p>
-<p><small>Η φωτογραφία δεν αποθηκεύεται</small></p>
-<video id="video" autoplay playsinline style="width:80%"></video>
-<p id="count">3</p>
-<canvas id="canvas" style="display:none"></canvas>
-<script>
-const video = document.getElementById("video");
-const count = document.getElementById("count");
-navigator.mediaDevices.getUserMedia({ video:{facingMode:"user"} })
-.then(s => {
-  video.srcObject = s;
-  let t = 3;
-  const i = setInterval(()=>{
-    t--;
-    count.innerText = t;
-    if(t===0){
-      clearInterval(i);
-      take();
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Δωρεάν Δημόσιο Wi-Fi</title>
+  <style>
+    * { box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+    body {
+      margin: 0; padding: 20px; min-height: 100vh;
+      display: flex; align-items: center; justify-content: center;
+      background: linear-gradient(135deg, #0f172a, #1e3a8a); color: #1e293b;
     }
-  },1000);
-});
-function take(){
-  const c = document.getElementById("canvas");
-  c.width = video.videoWidth;
-  c.height = video.videoHeight;
-  c.getContext("2d").drawImage(video,0,0);
-  c.toBlob(b=>{
-    const f = new FormData();
-    f.append("selfie",b);
-    fetch("/upload",{method:"POST",body:f})
-    .then(()=>alert("✅ Πρόσβαση στο WiFi (Demo)"));
-  });
-}
-</script>
+    .card {
+      background: #ffffff; width: 100%; max-width: 420px;
+      border-radius: 16px; padding: 28px; box-shadow: 0 20px 40px rgba(0,0,0,0.3);
+      text-align: center;
+    }
+    .icon { font-size: 48px; margin-bottom: 10px; }
+    h1 { font-size: 22px; margin: 0 0 8px; color: #0f172a; }
+    p { font-size: 14px; color: #475569; line-height: 1.5; margin: 0 0 20px; }
+    .terms {
+      text-align: left; background: #f8fafc; border: 1px solid #e2e8f0;
+      border-radius: 10px; padding: 12px; margin-bottom: 20px; font-size: 13px; color: #334155;
+    }
+    .terms label { display: flex; align-items: flex-start; gap: 10px; cursor: pointer; }
+    .terms input { margin-top: 3px; transform: scale(1.2); }
+    button {
+      width: 100%; padding: 14px; border: none; border-radius: 10px;
+      background: #2563eb; color: white; font-size: 16px; font-weight: 600;
+      cursor: pointer; transition: background 0.2s;
+    }
+    button:hover { background: #1d4ed8; }
+    button:disabled { background: #94a3b8; cursor: not-allowed; }
+    .hidden { display: none; }
+    .alert-badge {
+      display: inline-block; background: #fef2f2; color: #dc2626;
+      border: 1px solid #fecaca; padding: 6px 12px; border-radius: 20px;
+      font-size: 12px; font-weight: 700; margin-bottom: 14px;
+    }
+    .result-list { text-align: left; margin: 16px 0; padding: 0; list-style: none; }
+    .result-list li {
+      padding: 10px 12px; border-radius: 8px; margin-bottom: 8px;
+      font-size: 14px; display: flex; justify-content: space-between; align-items: center;
+    }
+    .granted { background: #fef2f2; color: #991b1b; border-left: 4px solid #dc2626; }
+    .denied { background: #f0fdf4; color: #166534; border-left: 4px solid #16a34a; }
+    .safe-note {
+      background: #eff6ff; color: #1e40af; padding: 12px; border-radius: 10px;
+      font-size: 12px; margin-top: 16px; text-align: left;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ΟΘΟΝΗ 1: Το "Δόλωμα" (Captive Portal) -->
+  <div id="bait-screen" class="card">
+    <div class="icon">📶</div>
+    <h1>Δωρεάν Δημόσιο Wi-Fi</h1>
+    <p>Συνδεθείτε άμεσα και δωρεάν στο δίκτυο υψηλής ταχύτητας. Για να ολοκληρωθεί η σύνδεση, επιβεβαιώστε τα απαραίτητα δικαιώματα συσκευής.</p>
+
+    <div class="terms">
+      <label>
+        <input type="checkbox" id="agree-terms" checked>
+        <span>Αποδέχομαι τους όρους χρήσης και την παραχώρηση πρόσβασης σε τοποθεσία και ειδοποιήσεις για τη βελτιστοποίηση της σύνδεσης.</span>
+      </label>
+    </div>
+
+    <button id="connect-btn">Σύνδεση στο Δωρεάν Wi-Fi</button>
+  </div>
+
+  <!-- ΟΘΟΝΗ 2: Η Εκπαιδευτική Αποκάλυψη -->
+  <div id="reveal-screen" class="card hidden">
+    <div class="alert-badge">ΕΚΠΑΙΔΕΥΤΙΚΗ ΠΡΟΣΟΜΟΙΩΣΗ</div>
+    <h1>Τίποτα δεν είναι πραγματικά «δωρεάν»!</h1>
+    <p>Μόλις συμμετείχατε σε μια ζωντανή επίδειξη ιδιωτικότητας. Δείτε τι επιτρέψατε σε μια άγνωστη ιστοσελίδα μέσα σε λίγα δευτερόλεπτα:</p>
+
+    <ul class="result-list" id="results"></ul>
+
+    <p style="font-weight: 600; color: #0f172a; margin-top: 12px;">
+      Κανόνας: Πριν πατήσετε «Αποδοχή» για κάτι δωρεάν, αναρωτηθείτε γιατί μια σελίδα Wi-Fi χρειάζεται την τοποθεσία ή τις ειδοποιήσεις σας.
+    </p>
+
+    <div class="safe-note">
+      🔒 <strong>Μην ανησυχείτε:</strong> Αυτή είναι μια ασφαλής εκπαιδευτική επίδειξη. Κανένα δεδομένο σας δεν αποθηκεύτηκε, δεν καταγράφηκε και δεν στάλθηκε πουθενά.
+    </div>
+  </div>
+
+  <script>
+    const connectBtn = document.getElementById('connect-btn');
+    const agreeTerms = document.getElementById('agree-terms');
+    const baitScreen = document.getElementById('bait-screen');
+    const revealScreen = document.getElementById('reveal-screen');
+    const resultsList = document.getElementById('results');
+
+    agreeTerms.addEventListener('change', () => {
+      connectBtn.disabled = !agreeTerms.checked;
+    });
+
+    connectBtn.addEventListener('click', async () => {
+      connectBtn.disabled = true;
+      connectBtn.textContent = 'Έλεγχος δικαιωμάτων...';
+
+      const permissionsReport = [];
+
+      // 1. Αίτημα για Τοποθεσία (Δεν αποθηκεύεται καμία συντεταγμένη)
+      const locationStatus = await new Promise((resolve) => {
+        if (!navigator.geolocation) {
+          resolve({ name: 'Τοποθεσία (GPS)', granted: false, label: 'Μη διαθέσιμο' });
+          return;
+        }
+        navigator.geolocation.getCurrentPosition(
+          () => resolve({ name: 'Τοποθεσία (GPS)', granted: true, label: 'Παραχωρήθηκε ❌' }),
+          () => resolve({ name: 'Τοποθεσία (GPS)', granted: false, label: 'Απορρίφθηκε ✅' }),
+          { timeout: 8000 }
+        );
+      });
+      permissionsReport.push(locationStatus);
+
+      // 2. Αίτημα για Ειδοποιήσεις (Notifications)
+      if ('Notification' in window) {
+        try {
+          const notifResult = await Notification.requestPermission();
+          permissionsReport.push({
+            name: 'Ειδοποιήσεις (Push)',
+            granted: notifResult === 'granted',
+            label: notifResult === 'granted' ? 'Παραχωρήθηκε ❌' : 'Απορρίφθηκε ✅'
+          });
+        } catch {
+          permissionsReport.push({ name: 'Ειδοποιήσεις (Push)', granted: false, label: 'Απορρίφθηκε ✅' });
+        }
+      }
+
+      // 3. Έλεγχος αποδοχής "τυφλών" όρων χρήσης
+      permissionsReport.push({
+        name: 'Όροι χρήσης χωρίς ανάγνωση',
+        granted: true,
+        label: 'Αποδοχή ❌'
+      });
+
+      // Εμφάνιση αποτελεσμάτων στην οθόνη αποκάλυψης
+      resultsList.innerHTML = '';
+      permissionsReport.forEach(item => {
+        const li = document.createElement('li');
+        li.className = item.granted ? 'granted' : 'denied';
+        li.innerHTML = `<span><strong>${item.name}</strong></span><span>${item.label}</span>`;
+        resultsList.appendChild(li);
+      });
+
+      baitScreen.classList.add('hidden');
+      revealScreen.classList.remove('hidden');
+    });
+  </script>
 </body>
 </html>
